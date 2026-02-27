@@ -1,21 +1,46 @@
-apiVersion: argoproj.io/v1alpha1
-kind: Application
+---
+apiVersion: apps/v1
+kind: Deployment
 metadata:
   name: kibana
-  namespace: argocd
+  namespace: kibana
 spec:
-  project: default
-  source:
-    repoURL: https://helm.elastic.co
-    chart: kibana
-    targetRevision: 8.12.2 # Use the latest version or your preferred one
-    helm:
-      values: |
-        elasticsearchHosts: "http://elasticsearch-master.elasticsearch.svc.cluster.local:9200"
-  destination:
-    server: https://kubernetes.default.svc
-    namespace: kibana
-  syncPolicy:
-    automated:
-      prune: true
-      selfHeal: true
+  replicas: 1
+  selector:
+    matchLabels:
+      app: kibana
+  template:
+    metadata:
+      labels:
+        app: kibana
+    spec:
+      containers:
+        - name: kibana
+          image: docker.elastic.co/kibana/kibana:8.12.2
+          ports:
+            - containerPort: 5601
+          env:
+            - name: ELASTICSEARCH_HOSTS
+              value: http://elasticsearch.elasticsearch.svc.cluster.local:9200
+          resources:
+            requests:
+              memory: "512Mi"
+              cpu: "250m"
+            limits:
+              memory: "1Gi"
+              cpu: "500m"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: kibana
+  namespace: kibana
+spec:
+  ports:
+    - port: 5601
+      targetPort: 5601
+      protocol: TCP
+      name: http
+  selector:
+    app: kibana
+  type: ClusterIP
